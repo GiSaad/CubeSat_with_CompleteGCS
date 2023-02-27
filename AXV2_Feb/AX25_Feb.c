@@ -964,7 +964,91 @@ void AX_ConnectedHandler(void){
 										break;
 			}
 		}else if(AX_ReceiveConfig.Frame_Type==I_Frame){
-			
+			if(AX_ReceiveConfig.SSID_C==Command){
+				if(AX_Received.AX_Length<=DL_Flags.N1){
+						V_A=AX_ReceiveConfig.NS;
+						if(V_A==V_S){
+							//AX_CheckIAck();
+							if(DL_Flags.ORB==1){
+							//Discard content of I FRame
+								if(AX_ReceiveConfig.PF_Bit==PF){
+									AX_SendConfig.NR=V_R;
+									AX_SendConfig.PF_Bit=PF;
+									AX_SendConfig.Frame_Type=S_Frame;
+									AX_Send.AX_SControl=RNR_1;
+									AX_BuildFrame(&AX_SendConfig);
+									DL_Flags.AckPend=0;
+									AXDL_State=Connected;
+								}else{
+									AXDL_State=Connected;
+								}
+							}else{
+								if(AX_ReceiveConfig.NR==V_S){
+									DL_Flags.RejExc=0;
+									if(DL_Flags.SREJExc>0){
+									DL_Flags.SREJExc--;
+									}
+									DLtoDLS_Primitives=DL_DATAIndicate;
+									while(I_Q_Receive[V_R].Empty==0){ // 1 ? 
+									 if(I_Q_Receive[V_R].Seq==V_R){
+										 //Copy Array Prefered 
+									 *I_Q_Receive[V_R].Data=*AX_Send.AX_Data;
+										 I_Q_Receive[V_R].Data_Length=AX_Send.AX_Length;
+											//I_Q_R Empty =0;
+										 DLtoDLS_Primitives=DL_DATAIndicate;
+										V_R++;
+									 }
+									}
+									if(AX_ReceiveConfig.PF_Bit==PF){
+										goto P_1; 
+										AXDL_State=Connected;
+									}else{
+										if(DL_Flags.AckPend==0){
+											DLtoLM_Primitives=LM_SEIZERequest;
+											DL_Flags.AckPend=1;
+											AXDL_State=Connected;
+									}else{
+										
+									}
+									}
+									}else{
+										if(DL_Flags.RejExc==1){
+											//Discard I Contents
+											if(AX_ReceiveConfig.PF_Bit==PF){
+										P_1:
+												AX_SendConfig.NR=V_R;
+									AX_SendConfig.PF_Bit=PF;
+									AX_SendConfig.Frame_Type=S_Frame;
+									AX_Send.AX_SControl=RR_1;
+									AX_BuildFrame(&AX_SendConfig);
+									DL_Flags.AckPend=0;
+									}
+								}else{
+								//SREJ Disablled
+									//discard I Fame
+									DL_Flags.RejExc=1;
+									AX_SendConfig.NR=V_R;
+									AX_SendConfig.PF_Bit=PF;
+									AX_SendConfig.Frame_Type=S_Frame;
+									AX_Send.AX_SControl=REJ_1;
+									AX_BuildFrame(&AX_SendConfig);
+									DL_Flags.AckPend=0;
+								}
+							}
+						}
+					}else{
+							AX_NR_ErrorRecovery();
+						}
+				}else{
+					DL_Error=O;
+					AX_EstablishDataLink();
+					DL_Flags.Layer3Init=0;
+					AXDL_State=Awaiting_Connection;
+				}
+				}else{
+				DL_Error=S;
+			//Discard I Frame
+			}
 			
 		}			
 		if((DL_Error==L)||(DL_Error==M)||(DL_Error==N)){
